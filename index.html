@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Satellite Map with API Data</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+        #map { height: 500px; }
+        #slider-container { margin-top: 10px; text-align: center; }
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+    <div id="slider-container">
+        <input type="range" id="slider" min="0" max="99" value="0" step="1">
+        <p>Current Location: <span id="location-info">Loading...</span></p>
+    </div>
+
+    <script>
+        const API_URL = "https://api.thingspeak.com/channels/2881307/feeds.json?api_key=23X7ROL7E52Q0O39&results=50"; // Replace with your actual API endpoint
+        let locations = [];
+
+        // Initialize the map with Esri Satellite view
+        const map = L.map('map').setView([0, 0], 13);
+        L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+            attribution: 'Tiles &copy; Esri, Maxar, Earthstar Geographics'
+        }).addTo(map);
+
+        // Marker for current location
+        const marker = L.marker([0, 0]).addTo(map);
+
+        // Fetch location data from API
+        async function fetchLocations() {
+            try {
+                const response = await fetch(API_URL);
+                const data = await response.json();
+                
+                // Extract latitude and longitude from "feeds"
+                locations = data.feeds.map(feed => ({
+                    lat: parseFloat(feed.field1),
+                    lng: parseFloat(feed.field2)
+                }));
+
+                if (locations.length === 0) {
+                    alert("No location data available.");
+                    return;
+                }
+
+                // Update slider max value based on data length
+                document.getElementById("slider").max = locations.length - 1;
+
+                // Set initial position
+                updateLocation(0);
+            } catch (error) {
+                console.error("Error fetching locations:", error);
+                alert("Failed to load location data.");
+            }
+        }
+
+        // Update marker and map when slider changes
+        function updateLocation(index) {
+            if (locations.length === 0) return;
+
+            const newLocation = locations[index];
+            marker.setLatLng([newLocation.lat, newLocation.lng]);
+            map.setView([newLocation.lat, newLocation.lng]);
+            document.getElementById('location-info').textContent = `Lat: ${newLocation.lat}, Lng: ${newLocation.lng}`;
+        }
+
+        document.getElementById('slider').addEventListener('input', function(event) {
+            updateLocation(event.target.value);
+        });
+
+        // Fetch locations on page load
+        fetchLocations();
+    </script>
+</body>
+</html>
